@@ -1,0 +1,134 @@
+Spreadsheet Proficiency
+
+Assume you have two worksheets:
+
+- **`tickets`**: `ticket_id`, `created_at`, `closed_at`, `outlet_id`, `cms_id`
+- **`feedbacks`**: `cms_id`, `feedback_at`, `feedback_rating`, `ticket_created_at`
+
+---
+
+### Q1. Populate `ticket_created_at` column in `feedbacks` with `created_at` from `tickets`.
+
+We can match rows using `cms_id`.
+
+#### Using `INDEX + MATCH` (recommended)
+
+Assume:
+
+- In `feedbacks` sheet:
+  - `cms_id` is in column **A** (starting A2).
+  - `ticket_created_at` is column **D**.
+- In `tickets` sheet:
+  - `created_at` is in column **B**.
+  - `cms_id` is in column **E**.
+
+In `feedbacks!D2`:
+
+```excel
+=INDEX(tickets!$B:$B, MATCH(A2, tickets!$E:$E, 0))
+```
+
+Explanation:
+
+- `MATCH(A2, tickets!$E:$E, 0)` finds the row in `tickets` where `cms_id` matches.
+- `INDEX(tickets!$B:$B, ...)` returns the corresponding `created_at`.
+- Drag/fill this formula down for all feedback rows.
+
+You can do the same in **Google Sheets** (same formula).
+
+---
+
+### Q2. Fetch **outlet-wise count** of tickets created AND closed:
+
+- (a) on the **same day**
+- (b) in the **same hour of the same day**
+
+We’ll use **helper columns** and either `PivotTable` or `SUMIFS`.
+
+#### Step 1 – Add helper columns in `tickets` sheet
+
+Assume original columns:
+
+- A: `ticket_id`
+- B: `created_at`
+- C: `closed_at`
+- D: `outlet_id`
+- E: `cms_id`
+
+Add:
+
+- **F: created_date**
+
+```excel
+=INT(B2)
+```
+
+(or `=DATE(YEAR(B2), MONTH(B2), DAY(B2))`)
+
+- **G: closed_date**
+
+```excel
+=INT(C2)
+```
+
+- **H: created_hour**
+
+```excel
+=FLOOR(B2, "1:00")
+```
+
+- **I: closed_hour**
+
+```excel
+=FLOOR(C2, "1:00")
+```
+
+- **J: same_day_flag**
+
+```excel
+=IF(F2 = G2, 1, 0)
+```
+
+- **K: same_hour_flag**
+
+```excel
+=IF(H2 = I2, 1, 0)
+```
+
+Now each ticket has flags indicating whether it was closed on the **same day** and in the **same hour** as created.
+
+---
+
+#### Step 2 (a) – Outlet-wise count of tickets created & closed on the **same day**
+
+If you have a list of outlets in another sheet (say `summary` sheet where `outlet_id` is in column A), you can use:
+
+In `summary!B2`:
+
+```excel
+=SUMIFS(tickets!$J:$J, tickets!$D:$D, A2)
+```
+
+- This sums `same_day_flag` for all rows of that outlet.
+- Copy down for all outlets.
+
+Alternatively, create a **PivotTable**:
+
+- Use the `tickets` range.
+- Rows: `outlet_id`
+- Values: `same_day_flag` (Sum)
+
+---
+
+#### Step 2 (b) – Outlet-wise count of tickets created & closed in the **same hour** of the same day
+
+Similar logic, but using `same_hour_flag`.
+
+In `summary!C2`:
+
+```excel
+=SUMIFS(tickets!$K:$K, tickets!$D:$D, A2)
+```
+
+- This counts tickets that were created and closed in the same hour.
+- Again, can also be done using a PivotTable with `outlet_id` as rows and `same_hour_flag` as Sum.
